@@ -7,11 +7,13 @@ import org.springframework.transaction.annotation.Transactional;
 import pl.nazwa.arzieba.redditclone.dao.UserRepository;
 import pl.nazwa.arzieba.redditclone.dao.VerificationTokenRepository;
 import pl.nazwa.arzieba.redditclone.dto.RegisterRequest;
+import pl.nazwa.arzieba.redditclone.exceptions.SpringRedditException;
 import pl.nazwa.arzieba.redditclone.model.NotificationEmail;
 import pl.nazwa.arzieba.redditclone.model.User;
 import pl.nazwa.arzieba.redditclone.model.VerificationToken;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -57,5 +59,19 @@ public class AuthService {
         return token;
 
 
+    }
+
+    public void verifyAccount(String token) {
+        Optional<VerificationToken> verificationToken = verificationTokenRepository.findByToken(token);
+        verificationToken.orElseThrow(()->new SpringRedditException("Invalid Token"));
+        fetchUserAndEnable(verificationToken.get());
+    }
+
+    @Transactional
+    public void fetchUserAndEnable(VerificationToken verificationToken) {
+        String username = verificationToken.getUser().getUsername();
+        User user = userRepository.findByUsername(username).orElseThrow(() -> new SpringRedditException("User not found with name: " + username));
+        user.setEnabled(true);
+        userRepository.save(user);
     }
 }
